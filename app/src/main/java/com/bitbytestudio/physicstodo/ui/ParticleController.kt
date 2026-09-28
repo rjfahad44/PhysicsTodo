@@ -144,9 +144,9 @@ class ParticleController {
                 p.velocityY += gy * subDt
 
                 // Damping
-                p.velocityX *= (1f - 1.2f * subDt)
+                p.velocityX *= (1f - 1.5f * subDt)
 
-                p.velocityY *= (1f - 1.2f * subDt)
+                p.velocityY *= (1f - 1.5f * subDt)
 
                 p.x += p.velocityX * subDt
 
@@ -154,7 +154,8 @@ class ParticleController {
 
                 p.rotation += p.angularVelocity * subDt
 
-                p.angularVelocity *= (1f - 2.0f * subDt)
+                // Strong angular damping so spinning stops rapidly
+                p.angularVelocity *= (1f - 15.0f * subDt)
             }
 
             // Particle-particle collision & sand heap stacking
@@ -216,7 +217,7 @@ class ParticleController {
                         // add small horizontal slide component to allow particles to slide off shoulders
                         if (
                             abs(nx) < 0.25f &&
-                            (abs(p1.velocityY) > 8f || abs(p2.velocityY) > 8f)
+                            (abs(p1.velocityY) > 12f || abs(p2.velocityY) > 12f)
                         ) {
 
                             val slipSign =
@@ -290,10 +291,14 @@ class ParticleController {
 
                             p2.velocityY += frictionImpulse * ty
 
-                            // Add angular momentum from friction
-                            p1.angularVelocity -= frictionImpulse * 0.05f
+                            // Add tiny angular momentum from friction and clamp it strictly
+                            p1.angularVelocity -= frictionImpulse * 0.005f
 
-                            p2.angularVelocity += frictionImpulse * 0.05f
+                            p2.angularVelocity += frictionImpulse * 0.005f
+
+                            p1.angularVelocity = p1.angularVelocity.coerceIn(-2f, 2f)
+
+                            p2.angularVelocity = p2.angularVelocity.coerceIn(-2f, 2f)
                         }
                     }
                 }
@@ -318,10 +323,10 @@ class ParticleController {
                         p.velocityY = 0f
                     }
 
-                    // Strong floor friction for fast, clean settling
-                    p.velocityX *= (1f - 28f * subDt)
+                    // Strong floor friction & rotation damping for fast, clean settling
+                    p.velocityX *= (1f - 30f * subDt)
 
-                    p.angularVelocity *= (1f - 25f * subDt)
+                    p.angularVelocity *= (1f - 30f * subDt)
                 }
 
                 // Left wall
@@ -348,18 +353,17 @@ class ParticleController {
                     }
                 }
 
-                // Settle threshold: stop micro-movements once velocity drops low
-                if (
-                    abs(p.velocityX) < 4f &&
-                    abs(p.velocityY) < 4f &&
-                    p.y >= floorY - p.radius * 3f
-                ) {
+                // Settle threshold: stop ALL micro-movements and spinning once velocity drops low
+                if (abs(p.velocityX) < 8f && abs(p.velocityY) < 8f) {
 
                     p.velocityX = 0f
 
                     p.velocityY = 0f
 
                     p.angularVelocity = 0f
+
+                    // Gently damp rotation towards flat upright angle
+                    p.rotation *= (1f - 8f * subDt)
                 }
             }
         }

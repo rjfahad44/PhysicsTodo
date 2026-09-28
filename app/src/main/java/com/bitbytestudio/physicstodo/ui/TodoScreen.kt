@@ -6,6 +6,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -141,11 +142,9 @@ fun TodoScreen(
 
             val size = latestRootSize
 
-            val animations = particleController.animations.values.toList()
+            if (size.width > 0 && size.height > 0) {
 
-            animations.forEach { animation ->
-
-                animation.update(
+                particleController.updateAll(
                     dt = safeDt,
                     tiltX = latestTiltX,
                     tiltY = latestTiltY,
@@ -155,27 +154,17 @@ fun TodoScreen(
                     fontSizePx = fontSizePx
                 )
 
-                /*
-                 * Returning particles have
-                 * reached their exact text positions.
-                 */
-                if (animation.phase == ParticlePhase.RETURNING) {
-
-                    val finished = animation.particles.all { particle ->
-
-                        val dx = particle.returnX - particle.x
-
-                        val dy = particle.returnY - particle.y
-
-                        dx * dx + dy * dy < 4f
+                val finishedAnimations =
+                    particleController.animations.values.filter { animation ->
+                        animation.phase == ParticlePhase.RETURNING &&
+                            animation.isReturnFinished()
                     }
 
-                    if (finished) {
+                finishedAnimations.forEach { animation ->
 
-                        particleController.remove(
-                            animation.taskId
-                        )
-                    }
+                    particleController.remove(
+                        animation.taskId
+                    )
                 }
             }
         }
@@ -200,7 +189,7 @@ fun TodoScreen(
                 .fillMaxSize()
                 .navigationBarsPadding(),
 
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            contentPadding = PaddingValues(
                     horizontal = 16.dp, vertical = 24.dp
                 ),
 
@@ -259,12 +248,6 @@ fun TodoScreen(
                                         text = todo.text,
 
                                         layout = layout,
-
-                                        screenWidth = rootSize.width.toFloat(),
-
-                                        screenHeight = rootSize.height.toFloat(),
-
-                                        floorPadding = floorPadding,
 
                                         fontSizePx = fontSizePx
                                     )

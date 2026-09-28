@@ -15,10 +15,7 @@ class TextParticle(
     val height: Float,
 
     initialReturnX: Float,
-    initialReturnY: Float,
-
-    val targetX: Float,
-    val targetY: Float
+    initialReturnY: Float
 ) {
 
     var x by mutableFloatStateOf(initialX)
@@ -36,4 +33,17 @@ class TextParticle(
     var returnX by mutableFloatStateOf(initialReturnX)
 
     var returnY by mutableFloatStateOf(initialReturnY)
+
+    val isWhitespace: Boolean = character.isWhitespace()
+
+    val radius: Float = (maxOf(width, height) * 0.45f).coerceIn(10f, 28f)
+
+    fun getCenterX(): Float = x + width * 0.5f
+
+    fun getCenterY(): Float = y - height * 0.35f
+
+    fun setCenter(cx: Float, cy: Float) {
+        x = cx - width * 0.5f
+        y = cy + height * 0.35f
+    }
 }

@@ -49,11 +49,8 @@ fun TodoScreen(
 ) {
 
     val todos by viewModel.todos.collectAsStateWithLifecycle()
-
     val density = LocalDensity.current
-
     val context = LocalContext.current
-
     val particleController = remember {
         ParticleController()
     }
@@ -68,17 +65,13 @@ fun TodoScreen(
     val textLayouts = remember {
         mutableStateMapOf<Long, TaskTextLayout>()
     }
-
     var rootSize by remember {
         mutableStateOf(IntSize.Zero)
     }
-
     val fontSize = 17.sp
-
     val fontSizePx = with(density) {
         fontSize.toPx()
     }
-
     val floorPadding = with(density) {
         42.dp.toPx()
     }
@@ -87,9 +80,7 @@ fun TodoScreen(
      * Start / stop accelerometer.
      */
     DisposableEffect(Unit) {
-
         motionSensor.start()
-
         onDispose {
             motionSensor.stop()
         }
@@ -100,9 +91,7 @@ fun TodoScreen(
      * the single frame loop.
      */
     val latestRootSize by rememberUpdatedState(rootSize)
-
     val latestTiltX by rememberUpdatedState(motionSensor.tiltX)
-
     val latestTiltY by rememberUpdatedState(motionSensor.tiltY)
 
     /*
@@ -112,24 +101,18 @@ fun TodoScreen(
      * There is only ONE frame loop for all particles.
      */
     LaunchedEffect(Unit) {
-
         var lastFrameNanos = 0L
-
         while (isActive) {
-
             val now = withFrameNanos {
                 it
             }
 
             if (lastFrameNanos == 0L) {
-
                 lastFrameNanos = now
-
                 continue
             }
 
             val dt = (now - lastFrameNanos) / 1_000_000_000f
-
             lastFrameNanos = now
 
             /*
@@ -154,14 +137,12 @@ fun TodoScreen(
                     fontSizePx = fontSizePx
                 )
 
-                val finishedAnimations =
-                    particleController.animations.values.filter { animation ->
+                val finishedAnimations = particleController.animations.values.filter { animation ->
                         animation.phase == ParticlePhase.RETURNING &&
                             animation.isReturnFinished()
                     }
 
                 finishedAnimations.forEach { animation ->
-
                     particleController.remove(
                         animation.taskId
                     )
@@ -182,28 +163,23 @@ fun TodoScreen(
             }) {
 
         /*
-         * REAL TODO LIST
+         * REAL LIST
          */
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .navigationBarsPadding(),
-
             contentPadding = PaddingValues(
                     horizontal = 16.dp, vertical = 24.dp
                 ),
-
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-
             item {
-
                 Text(
                     text = "My Tasks",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold
                 )
-
                 Spacer(
                     modifier = Modifier.height(16.dp)
                 )
@@ -213,25 +189,16 @@ fun TodoScreen(
                 items = todos, key = { todo ->
                     todo.id
                 }) { todo ->
-
                 val hasParticleAnimation = particleController.hasAnimation(todo.id)
-
                 TodoItem(
                     todo = todo,
-
                     fontSize = fontSize,
-
                     hideOriginalText = hasParticleAnimation,
-
                     onLayoutChanged = { layout ->
-
                         textLayouts[todo.id] = layout
                     },
-
                     onToggle = {
-
                         if (!todo.completed) {
-
                             /*
                              * COMPLETE
                              *
@@ -239,20 +206,14 @@ fun TodoScreen(
                              * from the EXACT text layout.
                              */
                             val layout = textLayouts[todo.id]
-
                             if (layout != null && rootSize.width > 0 && rootSize.height > 0) {
-
                                 particleController.startComplete(
                                         taskId = todo.id,
-
                                         text = todo.text,
-
                                         layout = layout,
-
                                         fontSizePx = fontSizePx
                                     )
                             }
-
                             /*
                              * Now update real Todo state.
                              */
@@ -261,7 +222,6 @@ fun TodoScreen(
                             )
 
                         } else {
-
                             /*
                              * UNDO
                              *
@@ -272,12 +232,9 @@ fun TodoScreen(
                              * text position.
                              */
                             val layout = textLayouts[todo.id]
-
                             if (layout != null) {
-
                                 particleController.startReturn(
                                         taskId = todo.id,
-
                                         latestLayout = layout
                                     )
                             }
@@ -313,7 +270,6 @@ fun TodoScreen(
 private fun ParticleOverlay(
     animations: List<ParticleAnimation>
 ) {
-
     if (animations.isEmpty()) {
         return
     }
@@ -321,28 +277,17 @@ private fun ParticleOverlay(
     Canvas(
         modifier = Modifier.fillMaxSize()
     ) {
-
         val paint = Paint(
             Paint.ANTI_ALIAS_FLAG
         ).apply {
-
             isSubpixelText = true
-
-            typeface = Typeface.create(
-                Typeface.DEFAULT, Typeface.NORMAL
-            )
-
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
             textSize = 17.sp.toPx()
-
-            color = Color(
-                0xFF202124
-            ).toArgb()
+            color = Color(0xFF202124).toArgb()
         }
 
         animations.forEach { animation ->
-
             animation.particles.forEach { particle ->
-
                 /*
                  * Spaces don't need to draw.
                  *
@@ -358,22 +303,16 @@ private fun ParticleOverlay(
                  * Draw each character individually.
                  */
                 drawContext.canvas.nativeCanvas.save()
-
                 drawContext.canvas.nativeCanvas.rotate(
                         particle.rotation * 57.29578f,
-
                         particle.x,
-
                         particle.y
                     )
 
                 drawContext.canvas.nativeCanvas.drawText(
                         particle.character.toString(),
-
                         particle.x,
-
                         particle.y,
-
                         paint
                     )
 

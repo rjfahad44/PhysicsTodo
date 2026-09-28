@@ -50,41 +50,25 @@ fun TodoItem(
      * create exact character anchors.
      */
     fun publishLayout() {
-
         val result = textLayoutResult ?: return
-
         if (result.layoutInput.text.text.isEmpty()) {
             return
         }
 
         val anchors = buildList {
-
             for (index in result.layoutInput.text.text.indices) {
 
                 val character = result.layoutInput.text.text[index]
-
-                val rect = result.getBoundingBox(
-                    index
-                )
-
-                val line = result.getLineForOffset(
-                    index
-                )
-
-                val baseline = result.getLineBaseline(
-                    line
-                )
+                val rect = result.getBoundingBox(index)
+                val line = result.getLineForOffset(index)
+                val baseline = result.getLineBaseline(line)
 
                 add(
                     CharacterAnchor(
                         character = character,
-
                         x = textRootPosition.x + rect.left,
-
                         baselineY = textRootPosition.y + baseline,
-
                         width = rect.width,
-
                         height = rect.height
                     )
                 )
@@ -94,9 +78,7 @@ fun TodoItem(
         onLayoutChanged(
             TaskTextLayout(
                 taskId = todo.id,
-
                 text = todo.text,
-
                 characters = anchors
             )
         )
@@ -108,10 +90,8 @@ fun TodoItem(
             .clip(
                 RoundedCornerShape(16.dp)
             ),
-
         tonalElevation = 2.dp
     ) {
-
         Row(modifier = Modifier
             .fillMaxWidth()
             .clickable {
@@ -120,12 +100,10 @@ fun TodoItem(
             .padding(
                 horizontal = 16.dp, vertical = 14.dp
             ),
-
             verticalAlignment = Alignment.CenterVertically) {
 
             Checkbox(
                 checked = todo.completed,
-
                 onCheckedChange = {
                     onToggle()
                 })
@@ -147,7 +125,6 @@ fun TodoItem(
              */
             Text(
                 text = todo.text,
-
                 modifier = Modifier
                     .weight(1f)
                     .alpha(
@@ -158,9 +135,7 @@ fun TodoItem(
                         }
                     )
                     .onGloballyPositioned { coordinates ->
-
                         textRootPosition = coordinates.positionInRoot()
-
                         /*
                          * Position changed due to:
                          *
@@ -174,17 +149,11 @@ fun TodoItem(
                     },
 
                 fontSize = fontSize,
-
                 fontWeight = FontWeight.Normal,
-
                 maxLines = 2,
-
                 overflow = TextOverflow.Ellipsis,
-
                 onTextLayout = { result ->
-
                     textLayoutResult = result
-
                     /*
                      * onGloballyPositioned may already
                      * have a valid position.

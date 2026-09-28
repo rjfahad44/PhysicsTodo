@@ -7,10 +7,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 
-// ============================================================
-// MODEL
-// ============================================================
-
 @Stable
 data class Todo(
     val id: Long,
@@ -54,13 +50,9 @@ class TodoViewModel : ViewModel() {
     val todos: StateFlow<List<Todo>> = _todos.asStateFlow()
 
     fun toggleTodo(id: Long) {
-
         _todos.value = _todos.value.map { todo ->
-
             if (todo.id == id) {
-                todo.copy(
-                    completed = !todo.completed
-                )
+                todo.copy(completed = !todo.completed)
             } else {
                 todo
             }

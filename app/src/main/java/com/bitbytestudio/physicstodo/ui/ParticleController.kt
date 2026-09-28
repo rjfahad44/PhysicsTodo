@@ -114,6 +114,18 @@ class ParticleController {
             return
         }
 
+        // Quick check: if ALL particles are completely stationary (vx=0, vy=0, w=0) AND tilt is near 0,
+        // skip physics calculation to save battery & CPU resources
+        val isAnyMoving = physicsParticles.any { p ->
+            p.velocityX != 0f || p.velocityY != 0f || p.angularVelocity != 0f
+        }
+
+        val tiltMagSq = tiltX * tiltX + tiltY * tiltY
+
+        if (!isAnyMoving && tiltMagSq < 0.08f) {
+            return
+        }
+
         val baseGravity = 2200f
 
         val gx = tiltX * 1400f
@@ -127,14 +139,14 @@ class ParticleController {
                     fontSizePx * 0.2f
                 ).coerceAtLeast(fontSizePx)
 
-        // Substep simulation for high accuracy and fast settling
-        val subSteps = 4
+        // Substep simulation (8 substeps) for smooth, high-accuracy rigid body sand physics
+        val subSteps = 8
 
         val subDt = dt / subSteps
 
         for (step in 0 until subSteps) {
 
-            // Apply gravity & air resistance damping
+            // Step 1: Apply gravity, tilt, and air resistance damping
             for (i in physicsParticles.indices) {
 
                 val p = physicsParticles[i]
@@ -143,10 +155,10 @@ class ParticleController {
 
                 p.velocityY += gy * subDt
 
-                // Damping
-                p.velocityX *= (1f - 1.5f * subDt)
+                // Smooth air drag
+                p.velocityX *= (1f - 1.2f * subDt)
 
-                p.velocityY *= (1f - 1.5f * subDt)
+                p.velocityY *= (1f - 1.2f * subDt)
 
                 p.x += p.velocityX * subDt
 
@@ -154,11 +166,11 @@ class ParticleController {
 
                 p.rotation += p.angularVelocity * subDt
 
-                // Strong angular damping so spinning stops rapidly
-                p.angularVelocity *= (1f - 15.0f * subDt)
+                // Angular friction
+                p.angularVelocity *= (1f - 12.0f * subDt)
             }
 
-            // Particle-particle collision & sand heap stacking
+            // Step 2: Particle-particle collisions & sand heap stacking
             val count = physicsParticles.size
 
             for (i in 0 until count) {
@@ -195,12 +207,7 @@ class ParticleController {
 
                         if (dist < 0.001f) {
 
-                            dx =
-                                if ((p1.id + p2.id) % 2 == 0) {
-                                    0.1f
-                                } else {
-                                    -0.1f
-                                }
+                            dx = if ((p1.id + p2.id) % 2 == 0) 0.1f else -0.1f
 
                             dy = -0.1f
 
@@ -213,21 +220,15 @@ class ParticleController {
 
                         var ny = dy / dist
 
-                        // If nearly directly vertical stack AND particles are actively moving down,
-                        // add small horizontal slide component to allow particles to slide off shoulders
+                        // Slide off shoulders horizontally if vertically stacked
                         if (
-                            abs(nx) < 0.25f &&
-                            (abs(p1.velocityY) > 12f || abs(p2.velocityY) > 12f)
+                            abs(nx) < 0.3f &&
+                            (abs(p1.velocityY) > 10f || abs(p2.velocityY) > 10f)
                         ) {
 
-                            val slipSign =
-                                if (p1.id % 2 == 0) {
-                                    1f
-                                } else {
-                                    -1f
-                                }
+                            val slipSign = if (p1.id % 2 == 0) 1f else -1f
 
-                            nx += slipSign * 0.15f
+                            nx += slipSign * 0.2f
 
                             val len = sqrt(nx * nx + ny * ny)
 
@@ -236,20 +237,22 @@ class ParticleController {
                             ny /= len
                         }
 
-                        // Position separation
-                        val halfOverlap = overlap * 0.5f
+                        // Gentle Baumgarte position separation (prevents spring explosions / jitter)
+                        val separationFactor = 0.45f
+
+                        val sep = overlap * separationFactor
 
                         p1.setCenter(
-                            c1x - nx * halfOverlap,
-                            c1y - ny * halfOverlap
+                            c1x - nx * sep,
+                            c1y - ny * sep
                         )
 
                         p2.setCenter(
-                            c2x + nx * halfOverlap,
-                            c2y + ny * halfOverlap
+                            c2x + nx * sep,
+                            c2y + ny * sep
                         )
 
-                        // Velocity resolution
+                        // Velocity impulse resolution
                         val rvx = p2.velocityX - p1.velocityX
 
                         val rvy = p2.velocityY - p1.velocityY
@@ -258,7 +261,8 @@ class ParticleController {
 
                         if (velAlongNormal < 0f) {
 
-                            val e = 0.08f // Inelastic collision for quick sand settling
+                            // Restitution e = 0.12f (inelastic sand bounce)
+                            val e = 0.12f
 
                             val impulse = -(1f + e) * velAlongNormal * 0.5f
 
@@ -274,14 +278,14 @@ class ParticleController {
 
                             p2.velocityY += impY
 
-                            // Friction along tangent
+                            // Tangential friction
                             val tx = -ny
 
                             val ty = nx
 
                             val velAlongTangent = rvx * tx + rvy * ty
 
-                            val frictionImpulse = -velAlongTangent * 0.4f
+                            val frictionImpulse = -velAlongTangent * 0.35f
 
                             p1.velocityX -= frictionImpulse * tx
 
@@ -291,45 +295,47 @@ class ParticleController {
 
                             p2.velocityY += frictionImpulse * ty
 
-                            // Add tiny angular momentum from friction and clamp it strictly
-                            p1.angularVelocity -= frictionImpulse * 0.005f
+                            p1.angularVelocity -= frictionImpulse * 0.004f
 
-                            p2.angularVelocity += frictionImpulse * 0.005f
+                            p2.angularVelocity += frictionImpulse * 0.004f
 
-                            p1.angularVelocity = p1.angularVelocity.coerceIn(-2f, 2f)
+                            p1.angularVelocity = p1.angularVelocity.coerceIn(-3f, 3f)
 
-                            p2.angularVelocity = p2.angularVelocity.coerceIn(-2f, 2f)
+                            p2.angularVelocity = p2.angularVelocity.coerceIn(-3f, 3f)
                         }
                     }
                 }
             }
 
-            // Floor, Wall collisions, and Settle Threshold
+            // Step 3: Floor & Wall boundary constraints
             for (i in physicsParticles.indices) {
 
                 val p = physicsParticles[i]
 
-                // Floor check (baseline on floorY)
+                // Floor constraint
                 if (p.y > floorY) {
 
                     p.y = floorY
 
-                    if (abs(p.velocityY) > 20f) {
+                    if (p.velocityY > 0f) {
 
-                        p.velocityY = -p.velocityY * 0.1f
+                        if (p.velocityY > 25f) {
 
-                    } else {
+                            p.velocityY = -p.velocityY * 0.15f
 
-                        p.velocityY = 0f
+                        } else {
+
+                            p.velocityY = 0f
+                        }
                     }
 
-                    // Strong floor friction & rotation damping for fast, clean settling
-                    p.velocityX *= (1f - 30f * subDt)
+                    // Strong floor friction
+                    p.velocityX *= (1f - 25f * subDt)
 
-                    p.angularVelocity *= (1f - 30f * subDt)
+                    p.angularVelocity *= (1f - 25f * subDt)
                 }
 
-                // Left wall
+                // Left wall constraint
                 if (p.x < 8f) {
 
                     p.x = 8f
@@ -340,12 +346,10 @@ class ParticleController {
                     }
                 }
 
-                // Right wall
+                // Right wall constraint
                 if (p.x > screenWidth - p.width - 8f) {
 
-                    p.x =
-                        (screenWidth - p.width - 8f)
-                            .coerceAtLeast(8f)
+                    p.x = (screenWidth - p.width - 8f).coerceAtLeast(8f)
 
                     if (p.velocityX > 0f) {
 
@@ -353,17 +357,50 @@ class ParticleController {
                     }
                 }
 
-                // Settle threshold: stop ALL micro-movements and spinning once velocity drops low
-                if (abs(p.velocityX) < 8f && abs(p.velocityY) < 8f) {
+                // Step 4: Natural Settling & Smooth Motion Decay
+                val speedSq = p.velocityX * p.velocityX + p.velocityY * p.velocityY
 
-                    p.velocityX = 0f
+                val angSpeed = abs(p.angularVelocity)
 
-                    p.velocityY = 0f
+                if (speedSq < 300f && angSpeed < 1.0f) {
 
-                    p.angularVelocity = 0f
+                    // Exponential smooth decay when motion is slow near bottom/stack
+                    p.velocityX *= (1f - 20f * subDt)
 
-                    // Gently damp rotation towards flat upright angle
-                    p.rotation *= (1f - 8f * subDt)
+                    p.velocityY *= (1f - 20f * subDt)
+
+                    p.angularVelocity *= (1f - 20f * subDt)
+
+                    p.rotation *= (1f - 10f * subDt)
+
+                    // Complete zero-snap when speed is negligible (< 0.5 px/s)
+                    if (speedSq < 0.25f && angSpeed < 0.05f) {
+
+                        p.velocityX = 0f
+
+                        p.velocityY = 0f
+
+                        p.angularVelocity = 0f
+                    }
+                }
+            }
+        }
+
+        // Update animation phase to RESTING if all particles in that task are static
+        animationList.forEach { animation ->
+
+            if (animation.phase == ParticlePhase.FALLING) {
+
+                val nonWhitespace = animation.particles.filter { !it.isWhitespace }
+
+                val allStatic = nonWhitespace.all { p ->
+
+                    p.velocityX == 0f && p.velocityY == 0f && p.angularVelocity == 0f
+                }
+
+                if (allStatic && nonWhitespace.isNotEmpty()) {
+
+                    animation.phase = ParticlePhase.RESTING
                 }
             }
         }

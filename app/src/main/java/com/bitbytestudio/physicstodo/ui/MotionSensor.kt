@@ -12,17 +12,8 @@ import androidx.compose.runtime.setValue
 class MotionSensor(
     context: Context
 ) : SensorEventListener {
-
-    private val sensorManager =
-        context.getSystemService(
-            Context.SENSOR_SERVICE
-        ) as SensorManager
-
-    private val accelerometer =
-        sensorManager.getDefaultSensor(
-            Sensor.TYPE_ACCELEROMETER
-        )
-
+    private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+    private val accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
     var tiltX by mutableFloatStateOf(0f)
         private set
 
@@ -30,13 +21,10 @@ class MotionSensor(
         private set
 
     private var filteredX = 0f
-
     private var filteredY = 0f
 
     fun start() {
-
         accelerometer ?: return
-
         sensorManager.registerListener(
             this,
             accelerometer,
@@ -45,16 +33,13 @@ class MotionSensor(
     }
 
     fun stop() {
-
         sensorManager.unregisterListener(this)
     }
 
     override fun onSensorChanged(
         event: SensorEvent?
     ) {
-
         event ?: return
-
         if (
             event.sensor.type !=
             Sensor.TYPE_ACCELEROMETER
@@ -68,22 +53,14 @@ class MotionSensor(
         /*
          * Low pass filter.
          */
-        filteredX +=
-            (rawX - filteredX) * 0.08f
-
-        filteredY +=
-            (rawY - filteredY) * 0.08f
+        filteredX += (rawX - filteredX) * 0.08f
+        filteredY += (rawY - filteredY) * 0.08f
 
         /*
          * Normalize acceleration.
          */
-        tiltX =
-            (-filteredX / 9.81f)
-                .coerceIn(-1f, 1f)
-
-        tiltY =
-            (filteredY / 9.81f)
-                .coerceIn(-1f, 1f)
+        tiltX = (-filteredX / 9.81f).coerceIn(-1f, 1f)
+        tiltY = (filteredY / 9.81f).coerceIn(-1f, 1f)
     }
 
     override fun onAccuracyChanged(
